@@ -1,0 +1,117 @@
+---
+title: '"Reproducible Research: Peer Assessment 1"'
+author: "Rajat Kumar"
+date: "September 11, 2018"
+output: html_document
+---
+
+## Loading and preprocessing the data
+```{r}
+link <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+#if(!file.exists("./Module_5_Assignment_1")){dir.create("./Module_5_Assignment_1")}
+#download.file(link, destfile = "./Module_5_Assignment_1/data", method = "curl")
+#unzip(zipfile = "./Module_5_Assignment_1/data", 
+ #     exdir = "./Module_5_Assignment_1")
+#list.files("./Module_5_Assignment_1")
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(lubridate))
+data_activity <- fread("./Module_5_Assignment_1/activity.csv")
+
+# we see there are multiple of NA available in the data set what we do after that 
+# remove the NAs by using complete cases function
+data_activity <- data_activity[complete.cases(data_activity),]
+
+#working with dates
+class(data_activity$date)
+## we see the class of the date is charcter so we change the class from characters to date  using ymd function from lubridate package
+data_activity$date <- ymd(data_activity$date)
+
+```
+## What is mean total number of steps taken per day?
+```{r}
+suppressPackageStartupMessages(library(dplyr))
+data_activity <- group_by(data_activity, date)
+data_req <- summarise(data_activity, Steps_per_day = sum(steps), mean_steps_per_day = 
+                        mean(steps))
+ungroup(data_activity)
+with(data_req,hist(Steps_per_day, col = "blue"))
+mean(data_req$Steps_per_day) # mean of the steps taken per day
+median(data_req$Steps_per_day) # median of the steps taken per day
+
+```
+## What is the average daily activity pattern?
+```{r}
+data_daily <- group_by(data_activity, interval)
+data_daily <- summarise(data_daily, average_steps_per_interval = mean(steps))
+with(data_daily,plot(interval,average_steps_per_interval,type = "l", col = "blue",
+                     main = "Average Daily Pattern"))
+```
+
+
+###The 5-minute interval that,on average,contains the maximum number of steps
+```{r}
+data_daily[which(data_daily$average_steps_per_interval == max(data_daily$average_steps_per_interval)),]
+```
+
+
+## Imputing missing values
+###Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r}
+
+data_activity_nas <- fread("./Module_5_Assignment_1/activity.csv")
+data_activity_nas$date <- ymd(data_activity_nas$date)
+nas <- complete.cases(data_activity_nas)
+length(nas[nas == FALSE])
+```
+### Substituting the missing values in the data with mean of the steps and creating new dataset
+```{r}
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(lubridate))
+records <- as_tibble(fread("./Module_5_Assignment_1/activity.csv"))
+records$date <- ymd(records$date)
+records_grouped <- group_by(records, interval) %>% summarise(mean_steps= mean(steps,na.rm = T)) %>% ungroup(records)
+records_grouped <- as_tibble(records_grouped)
+head(records_grouped)
+beetroot <- function(x) {
+  # count NA
+  num.na <- sum(is.na(x))
+  # remove NA
+  x <- x[!is.na(x)]
+  # glue the number of NAs at the end
+  x <- c(x, rep(NA, num.na))
+  return(x)
+}
+# apply beetroot over each column in the dataframe
+records <-as.data.frame(lapply(records, beetroot))
+nas <- records[!complete.cases(records),]
+records <- records[complete.cases(records),]
+required_data <- inner_join(nas,records_grouped)
+required_data$steps <- NULL
+names(required_data) <- c("date", "interval", "steps")
+records_na_replaced <- rbind.data.frame(records, required_data)
+req <- group_by(records_na_replaced, date)%>% summarise(steps = sum(steps))
+par(mfrow = c(1,2))
+with(req, hist(steps, xlab= "Steps", ylab = "Frequency",col = "yellow", main = "Steps with imputed data"))
+with(data_req,hist(Steps_per_day,xlab= "Steps", ylab = "Frequency",main = "Steps without NAs", col = "blue"))
+mean(req$steps)
+median(req$steps)
+```
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+suppressPackageStartupMessages(library(lattice))
+records$DAY <- weekdays(records$date)
+weekend_data <- filter(records,DAY == "Sunday" | DAY == "Saturday")
+weekday_data <- filter(records, DAY != "Sunday" & DAY != "Saturday")
+weekday_data$day <- rep("Weekday")
+weekend_data$day <- rep("Weekend")
+final <- rbind(weekday_data, weekend_data)
+weekday <- weekday_data %>% group_by(interval) %>%
+            summarise(mean_steps_interval = mean(steps))
+weekend <- weekend_data %>% group_by(interval) %>%
+            summarise(mean_steps_interval = mean(steps))
+weekday$day <- rep("Weekday")
+weekend$day <- rep("Weekend")
+final_data<- rbind(weekday, weekend)
+xyplot(mean_steps_interval ~ interval| day, data = final_data,type = "l", layout= c(1,2))
+
