@@ -8,10 +8,10 @@ output: html_document
 ## Loading and preprocessing the data
 ```{r}
 link <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
-#if(!file.exists("./Module_5_Assignment_1")){dir.create("./Module_5_Assignment_1")}
-#download.file(link, destfile = "./Module_5_Assignment_1/data", method = "curl")
-#unzip(zipfile = "./Module_5_Assignment_1/data", 
- #     exdir = "./Module_5_Assignment_1")
+if(!file.exists("./Module_5_Assignment_1")){dir.create("./Module_5_Assignment_1")}
+download.file(link, destfile = "./Module_5_Assignment_1/data", method = "curl")
+unzip(zipfile = "./Module_5_Assignment_1/data", 
+      exdir = "./Module_5_Assignment_1")
 #list.files("./Module_5_Assignment_1")
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(lubridate))
